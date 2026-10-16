@@ -2,14 +2,14 @@
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 <channel>
   <title>跑一遍再说</title>
-  <link>https://example.netlify.app</link>
+  <link>https://bh1357906-sys.github.io/paoyibian</link>
   <description>大模型 API 实测 · agent 工具链 · 价格与真实成本</description>
   <language>zh-cn</language>
-  <lastBuildDate>Fri, 16 Oct 2026 12:16:14 +0000</lastBuildDate>
+  <lastBuildDate>Fri, 16 Oct 2026 16:14:05 +0000</lastBuildDate>
   <item>
     <title>美国国债 4%，为什么到你手上只剩 2.6%</title>
-    <link>https://example.netlify.app/posts/us-treasury-etf-withholding-tax.html</link>
-    <guid isPermaLink="true">https://example.netlify.app/posts/us-treasury-etf-withholding-tax.html</guid>
+    <link>https://bh1357906-sys.github.io/paoyibian/posts/us-treasury-etf-withholding-tax.html</link>
+    <guid isPermaLink="true">https://bh1357906-sys.github.io/paoyibian/posts/us-treasury-etf-withholding-tax.html</guid>
     <pubDate>Fri, 16 Oct 2026 00:00:00 +0000</pubDate>
     <description>国债利息在美国税法下有免预扣的豁免，但这个豁免在你把国债装进 ETF 的那一刻就失效了。SGOV 这类产品的收益几乎 100% 来自分红——而那恰好是唯一会被扣税的部分。附自查方法。</description>
     <content:encoded><![CDATA[<p>你想把一笔闲钱停在美元上。两个选择摆在面前：</p>
@@ -138,8 +138,8 @@
   </item>
   <item>
     <title>你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错</title>
-    <link>https://example.netlify.app/posts/deepseek-silent-downgrade.html</link>
-    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-silent-downgrade.html</guid>
+    <link>https://bh1357906-sys.github.io/paoyibian/posts/deepseek-silent-downgrade.html</link>
+    <guid isPermaLink="true">https://bh1357906-sys.github.io/paoyibian/posts/deepseek-silent-downgrade.html</guid>
     <pubDate>Thu, 15 Oct 2026 00:00:00 +0000</pubDate>
     <description>服务端和客户端各有一层静默替换。你写的模型名和真正执行的模型名，可以在你完全不知情的情况下分道扬镳。附自查方法。</description>
     <content:encoded><![CDATA[<p>我本来只是想验证一个代码注释。结果发现的情况比注释里写的更麻烦。</p>
@@ -236,8 +236,8 @@ _DEEPSEEK_RETIRED_ALIASES = {
   </item>
   <item>
     <title>DeepSeek v4-pro 比 flash 贵 3 倍，但多花的钱买的不是「能力」</title>
-    <link>https://example.netlify.app/posts/deepseek-v4pro-vs-flash.html</link>
-    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-v4pro-vs-flash.html</guid>
+    <link>https://bh1357906-sys.github.io/paoyibian/posts/deepseek-v4pro-vs-flash.html</link>
+    <guid isPermaLink="true">https://bh1357906-sys.github.io/paoyibian/posts/deepseek-v4pro-vs-flash.html</guid>
     <pubDate>Tue, 13 Oct 2026 00:00:00 +0000</pubDate>
     <description>同一道题跑两个模型：答案质量没有区别，耗时差 2.2 倍，花费差 2.4 倍。而 v4-pro 开到 high 推理档时，会把预算全部烧在思考上，一个字都不回答。</description>
     <content:encoded><![CDATA[<p>我把同一个问题分别丢给 <code>deepseek-flash</code> 和 <code>deepseek-v4-pro</code>,相同的 thinking 开关,相同的 medium 推理档。</p>
@@ -418,8 +418,8 @@ _DEEPSEEK_RETIRED_ALIASES = {
   </item>
   <item>
     <title>DeepSeek v4-pro costs 3× more than Flash. You&#x27;re not paying for intelligence.</title>
-    <link>https://example.netlify.app/posts/deepseek-v4pro-vs-flash-en.html</link>
-    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-v4pro-vs-flash-en.html</guid>
+    <link>https://bh1357906-sys.github.io/paoyibian/posts/deepseek-v4pro-vs-flash-en.html</link>
+    <guid isPermaLink="true">https://bh1357906-sys.github.io/paoyibian/posts/deepseek-v4pro-vs-flash-en.html</guid>
     <pubDate>Tue, 13 Oct 2026 00:00:00 +0000</pubDate>
     <description>Same prompt, both models, same effort. Equivalent answers. 2.2× the time, 2.4× the cost. And at high effort, v4-pro burns its whole budget on reasoning and returns nothing.</description>
     <content:encoded><![CDATA[<p>I ran the same prompt through <code>deepseek-flash</code> and <code>deepseek-v4-pro</code> — same thinking switch, same medium reasoning effort.</p>

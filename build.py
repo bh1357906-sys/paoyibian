@@ -20,7 +20,7 @@ ASSETS = ROOT / "assets"
 SITE_NAME = "跑一遍再说"
 SITE_TAGLINE = "不转述官方博客。每个结论背后都有一张自己跑出来的表。"
 SITE_DESC = "大模型 API 实测 · agent 工具链 · 价格与真实成本"
-SITE_URL = "https://example.netlify.app"  # 部署后替换成你的真实域名
+SITE_URL = "https://bh1357906-sys.github.io/paoyibian"  # 部署后如有自定义域名,改这里
 
 # slug -> (source file, title, date, lang, summary)
 MANIFEST = [
