@@ -25,6 +25,15 @@ SITE_URL = "https://example.netlify.app"  # 部署后替换成你的真实域名
 # slug -> (source file, title, date, lang, summary)
 MANIFEST = [
     dict(
+        slug="us-treasury-etf-withholding-tax",
+        src="us-treasury-etf-withholding-tax.md",
+        title="美国国债 4%，为什么到你手上只剩 2.6%",
+        date="2026-10-16",
+        lang="zh-Hans",
+        langtag="中文",
+        summary="国债利息在美国税法下有免预扣的豁免，但这个豁免在你把国债装进 ETF 的那一刻就失效了。SGOV 这类产品的收益几乎 100% 来自分红——而那恰好是唯一会被扣税的部分。附自查方法。",
+    ),
+    dict(
         slug="deepseek-silent-downgrade",
         src="deepseek-silent-downgrade.md",
         title="你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错",

@@ -5,7 +5,137 @@
   <link>https://example.netlify.app</link>
   <description>大模型 API 实测 · agent 工具链 · 价格与真实成本</description>
   <language>zh-cn</language>
-  <lastBuildDate>Fri, 16 Oct 2026 12:07:03 +0000</lastBuildDate>
+  <lastBuildDate>Fri, 16 Oct 2026 12:16:14 +0000</lastBuildDate>
+  <item>
+    <title>美国国债 4%，为什么到你手上只剩 2.6%</title>
+    <link>https://example.netlify.app/posts/us-treasury-etf-withholding-tax.html</link>
+    <guid isPermaLink="true">https://example.netlify.app/posts/us-treasury-etf-withholding-tax.html</guid>
+    <pubDate>Fri, 16 Oct 2026 00:00:00 +0000</pubDate>
+    <description>国债利息在美国税法下有免预扣的豁免，但这个豁免在你把国债装进 ETF 的那一刻就失效了。SGOV 这类产品的收益几乎 100% 来自分红——而那恰好是唯一会被扣税的部分。附自查方法。</description>
+    <content:encoded><![CDATA[<p>你想把一笔闲钱停在美元上。两个选择摆在面前：</p>
+<p><strong>A. 买 SGOV</strong>（iShares 0–3 月美国公债 ETF），点几下就行。
+<strong>B. 直接在券商买短期美国国债</strong>，要点开债券交易页面，稍微麻烦一点。</p>
+<p>表面收益差不多，都是"差不多 4% 的美元短端利率"。</p>
+<p><strong>但实际到手的差距可能接近 40%。</strong></p>
+<p>原因不是费用，不是费率，是<strong>一个大部分中文理财内容都不讲的规则：国债利息免预扣税，但装进 ETF 里就不免了。</strong></p>
+<hr />
+<h2>先说结论</h2>
+<p>同样一笔闲钱，同样买美国短债，三种情况的净收益：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>毛收益</th>
+<th>预扣</th>
+<th><strong>净收益</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SGOV（香港税务居民，或没交 W-8BEN）</td>
+<td>3.73%</td>
+<td>30%</td>
+<td><strong>2.61%</strong></td>
+</tr>
+<tr>
+<td>SGOV（中国税务居民，已适用协定）</td>
+<td>3.73%</td>
+<td>10%</td>
+<td><strong>3.36%</strong></td>
+</tr>
+<tr>
+<td><strong>直接买短期国债</strong></td>
+<td>~4.2%</td>
+<td><strong>0</strong></td>
+<td><strong>~4.2%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>最坏和最好的情况差 1.6 个百分点。</strong> 三万美金一年差约 480 美元。</p>
+<p>顺带纠正一个我自己一开始搞错的数字：我最初以为 SGOV 的收益率在 4% 附近。查了 iShares 官方页面才发现，<strong>它当前的 30 日 SEC 收益率是 3.73%</strong>（2026-10-14），不是 4%。所以下面所有计算我用的是 3.73%。</p>
+<h2>规则是什么</h2>
+<p>三层，缺一层都看不懂：</p>
+<p><strong>第一层：默认 30%。</strong>
+美国税法规定，支付给非美国税务居民（NRA）的美国来源股息、利息、特许权使用费，付款方必须按 <strong>30%</strong> 源泉预扣。这跟你的收入高低无关，是个固定税率。</p>
+<p><strong>第二层：国债利息有豁免。</strong>
+但美国国债的利息是个例外。IRC §871(h) 规定了一类叫「<strong>组合利息</strong>」（portfolio interest）的收入，非美国居民拿到这类利息<strong>免预扣税</strong>。</p>
+<p><strong>第三层（关键）：豁免只对「直接持有」有效。</strong>
+一旦你把国债装进基金或 ETF 里，基金分配给你的钱在美国税法眼里就不再是"国债利息"，而是"<strong>股息</strong>"。股息没有豁免，照扣。</p>
+<p>这一层是最反直觉的地方，也是最容易吃亏的地方。<strong>同一个资产，换个持有方式，税务待遇完全不同。</strong></p>
+<h2>证据：三处原文</h2>
+<p>规则这种东西，我不想让你只听我说。以下都是可查的原文。</p>
+<p><strong>① 券商自己的帮助中心</strong>（盈立证券 uSMART）写得比很多券商都清楚：</p>
+<blockquote>
+<p>「如果<strong>直接持有</strong>美國的國債（如美國國債、市政債券或公司債），<strong>也無需繳納利息稅</strong>。然而，透過債券基金或債券 ETF（例如 TLT）持有的國債，所發放的利息則被視為<strong>股息</strong>，需按股息稅率納稅。」</p>
+</blockquote>
+<p><strong>② 盈透证券（IBKR）的教学页</strong>。有人在问答里问 SGOV 的分配有没有预扣税，回答是一句没有多余修饰的话：</p>
+<blockquote>
+<p>"For SGOV, the distributions have withholding tax deducted."</p>
+</blockquote>
+<p><strong>③ 一个真实案例。</strong> AQUMON 公开过他们自己组合的分红记录：持有的美国高收益债 ETF（HYG）那次分红应得 2.35 美元，到账前被扣掉 0.71 美元 —— <strong>正好 30%。</strong></p>
+<p>如果你手里有境外券商的账户，这件事现在就能自己验证：<strong>翻你最近一次 ETF 分红的入账记录，看有没有一条单独的预扣税扣款。</strong> 有的话，金额除以分红总额，你就知道你的实际税率了。</p>
+<h2>为什么 SGOV 这个案例特别值得说</h2>
+<p>这里有个很多人没意识到的结构性差异。</p>
+<p>对非美国居民来说，<strong>美股买卖的价差（资本利得）是免美国税的</strong>。也就是说，一只普通股票 ETF，你的总收益由两部分组成：分红（会被扣税）+ 涨价（不扣税）。<strong>涨价那部分天然是税务效率高的。</strong></p>
+<p>但 SGOV 不一样。它是一种"面值型"基金，价格常年被钉在 100 美元附近 —— 每月分红后价格掉一点，再慢慢涨回去，你看到的是一条锯齿状的阶梯。</p>
+<p><strong>这意味着 SGOV 的收益几乎 100% 来自分红。</strong></p>
+<p>而分红恰好是唯一被预扣的那部分。</p>
+<p>换句话说：</p>
+<blockquote>
+<p><strong>你买 SGOV 要的就是那个 3.73%。而这 3.73% 是全额暴露在预扣税下的。</strong></p>
+</blockquote>
+<p>这是一个税务效率极端糟糕的结构 —— 一个几乎完全由应税分配构成回报的产品。<strong>你为了省事选了 ETF，结果把自己 100% 的收益送进了那个唯一会被扣税的通道。</strong></p>
+<h2>你能拿多少，取决于你是谁</h2>
+<p>同一个 SGOV，不同人到手完全不同：</p>
+<table>
+<thead>
+<tr>
+<th>你的身份</th>
+<th>预扣税率</th>
+<th>前提</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>中国税务居民</td>
+<td><strong>10%</strong></td>
+<td>必须已向券商提交 W-8BEN 并主张协定待遇</td>
+</tr>
+<tr>
+<td>香港税务居民</td>
+<td><strong>30%</strong></td>
+<td>美国与香港<strong>没有</strong>税收协定</td>
+</tr>
+<tr>
+<td>没交 W-8BEN 的任何人</td>
+<td><strong>30%</strong></td>
+<td>没有有效表格，券商只能按默认税率扣</td>
+</tr>
+</tbody>
+</table>
+<p><strong>中间那一行 30% 不是危言耸听。</strong> 美国和香港之间没有全面性税收协定，所以香港投资者拿美国股息就是 30%，没有优惠通道。</p>
+<p><strong>第二行那个 10% 也不是自动的。</strong> 中美税收协定把股息预扣税率从 30% 降到 10%，但<strong>你必须填 W-8BEN 并在表格里主张协定待遇</strong>（在 Part II 填 China）。不填，券商只能按 30% 扣。</p>
+<p>W-8BEN 的规则是：<strong>签一次管三年</strong>，到期要重签。所以如果你三年前开过户，那张表可能已经过期了。</p>
+<p><strong>这就是我建议你现在就去做的第一件事：查一下你的券商有没有替你交有效的 W-8BEN。</strong> 这一步漏了，你的所有股息都在按 30% 被扣。</p>
+<h2>那该怎么办</h2>
+<p>四件事，按优先级：</p>
+<p><strong>1. 先查 W-8BEN。</strong> 直接问券商客服：我的 W-8BEN 是否有效、是否已主张中美协定待遇、我的股息实际预扣率是多少。这一句问话可能值你一年几百美金。</p>
+<p><strong>2. 如果你要的是"把钱停住"，问券商能不能直接买短期国债。</strong> 这是本文的答案：<strong>同样的资产，直接持有免预扣，装进 ETF 要预扣。</strong> 如果你本来就是长期放着不动、到期拿回本金，直接买国债没有任何劣势，而且利息免税。看它债券交易里的<strong>最低买入金额</strong>是多少。</p>
+<p><strong>3. 如果只能用 ETF，就把"收益率"拆开看。</strong>
+一个反常识但很重要的结论：<strong>同样名义收益率的两个产品，分红率低的那个对你税务更友好</strong>，因为收益里不交税的那部分（价格变动）占比更大。
+所以别只看收益率高低，要看<strong>这个收益率有多少来自分红</strong>。</p>
+<p><strong>4. 别信规则默认值，问你自己的券商要实际税率。</strong> 规则是规则，执行是执行。有的券商自动适用协定，有的要你主动申请。<strong>只有扣款记录是真的。</strong></p>
+<h2>方法说明与局限</h2>
+<p>我把话说明白，包括对我自己不利的部分：</p>
+<ul>
+<li><strong>我没有实测任何一个账户的实际预扣。</strong> 那需要真实账户跑完一个完整的分红周期。文中所有"净收益"都是<strong>按规则推算</strong>出来的，不是实测数字。你要拿它做决策，<strong>必须自己去确认</strong>。</li>
+<li>全文的核心事实（国债利息豁免、ETF 分配按股息处理、中美 10% / 香港 30%）来自三处可查的原文：券商帮助中心、IBKR 教学页、IRC §871(h) 及 IRS 文件。但<strong>规则会变，协定会变</strong>。</li>
+<li>SGOV 的 3.73% 是 2026-10-14 的 30 日 SEC 收益率，会随市场动。3 个月期美债约 4.2% 是 10 月中的行情 —— <strong>注意这两者本身还有约 0.45 个百分点的差距</strong>，一部分是 SGOV 的管理费（0.09%），一部分是 SEC 收益率的滞后和口径差异。这个差额我解释不完，但它又是一个"直接买国债可能更划算"的理由。</li>
+<li><strong>我不是税务顾问。</strong> 这篇文章只做一件事：告诉你规则长什么样、去哪验证。该怎么做，你要么自己确认，要么找专业的人。</li>
+</ul>
+<hr />
+<p><strong>一句话总结：</strong> 国债利息在美国税法下有豁免，但这个豁免在你把国债装进 ETF 的那一刻就失效了。你为了省事选了 ETF，结果把自己全部的收益送进了唯一会被扣税的通道。而这件事的自查方法，只是翻一下你上一次分红的入账记录。</p>]]></content:encoded>
+  </item>
   <item>
     <title>你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错</title>
     <link>https://example.netlify.app/posts/deepseek-silent-downgrade.html</link>
