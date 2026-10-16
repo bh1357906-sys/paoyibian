@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错 — 跑一遍再说</title>
+<meta name="description" content="服务端和客户端各有一层静默替换。你写的模型名和真正执行的模型名，可以在你完全不知情的情况下分道扬镳。附自查方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错 — 跑一遍再说">
+<meta property="og:description" content="服务端和客户端各有一层静默替换。你写的模型名和真正执行的模型名，可以在你完全不知情的情况下分道扬镳。附自查方法。">
+<meta property="og:image" content="https://example.netlify.app/assets/banner-1200x400.png">
+<meta property="og:site_name" content="跑一遍再说">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="跑一遍再说" href="https://example.netlify.app/feed.xml">
+<link rel="icon" href="../assets/avatar-512.png">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="../index.html">跑一遍再说</a>
+  <nav>
+    <a href="../index.html">文章</a>
+    <a href="../about.html">关于</a>
+    <a href="https://example.netlify.app/feed.xml">RSS</a>
+  </nav>
+</header>
+<main>
+<article>
+<h1>你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错</h1>
+<p class="meta"><time datetime="2026-10-15">2026年10月15日</time> · 中文</p>
+<p>我本来只是想验证一个代码注释。结果发现的情况比注释里写的更麻烦。</p>
+<p>事情起因很简单:一份配置文件里写的是 <code>deepseek-reasoner</code>,但我在会话记录里看到的实际模型是 <code>deepseek-flash</code>。配置和现实不一致,而且——</p>
+<p><strong>没有任何报错。没有警告。调用成功,一切正常。</strong></p>
+<p>于是我做了两个测试。结论是:这条链路上有<strong>两层</strong>静默替换,你写的模型名和真正执行的模型名,可以在你完全不知情的情况下分道扬镳。</p>
+<hr />
+<h2>第一层:服务端自己就在换,而且在响应里告诉你了</h2>
+<p>我直接用 HTTP 请求,把三个模型名分别发给 DeepSeek 的官方接口,看它怎么回:</p>
+<table>
+<thead>
+<tr>
+<th>我发的模型名</th>
+<th>HTTP</th>
+<th>响应里 <code>model</code> 字段实际是什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-reasoner</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-chat</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>200</td>
+<td><code>deepseek-flash</code></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>200</td>
+<td><code>deepseek-v4-pro</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>deepseek-reasoner</code> 和 <code>deepseek-chat</code> 这两个 ID 早就被下架了 —— 看 <code>/models</code> 列表就很清楚,现在只剩 <code>deepseek-flash</code> 和 <code>deepseek-v4-pro</code>,那两个名字已经不在目录里了。</p>
+<p><strong>但接口并不拒绝它们。</strong> 你发过去,它 200 通过,然后<strong>换成 flash 帮你跑完</strong>,顺便在响应体的 <code>model</code> 字段里留了个记录。</p>
+<p>所以这里不存在"报错"这个环节。它不吵不闹,把活干了,只是干的不是你要的那件事。</p>
+<p>值得说清楚的是:我不确定这是 DeepSeek 有意留的兼容层,还是过渡期的软着陆。<strong>我只知道现在是这样,以及响应体里那个字段是唯一的线索。</strong> 绝大多数客户端和脚本从来不看它。</p>
+<h2>第二层:你的工具也在换,换得比服务端更早</h2>
+<p>同一件事在客户端还有一层。我用一个本地 agent 工具试了另一个方向:明确要求它用 <code>deepseek-reasoner</code>。</p>
+<p>它没报错,正常回答了。然后我去查它的用量记录:</p>
+<pre><code>session_id               model            calls
+20261015_210739_2016eb   deepseek-flash   1
+</code></pre>
+<p><strong>我要求的是 <code>deepseek-reasoner</code>,记录里写的是 <code>deepseek-flash</code>。</strong></p>
+<p>工具在发请求之前就把模型名换掉了。我把源码翻出来,映射表长这样:</p>
+<pre><code class="language-python"># DeepSeek retired ``deepseek-chat`` / ``deepseek-reasoner`` on 2026-07-24
+_DEEPSEEK_RETIRED_ALIASES = {
+    &quot;deepseek-chat&quot;: &quot;deepseek-flash&quot;,
+    &quot;deepseek-reasoner&quot;: &quot;deepseek-flash&quot;,
+}
+</code></pre>
+<p>顺带一个反转:这段注释说这两个 ID 从 2026-07-24 起调用一律返回 400。<strong>但上面那张表里我实测到的是 200。</strong> 要么 DeepSeek 后来放宽了,要么当初的 400 只发生在某条特定路径上。</p>
+<p>我不知道是哪个,但这件事本身很说明问题:<strong>连写这段兼容代码的人,对"现在会发生什么"的判断都可能已经过期了。</strong></p>
+<h2>为什么两边都选了静默替换</h2>
+<p>先说句公道话:这个设计不是恶意,甚至算合理。</p>
+<p>如果你是个工具作者,官方退役了两个模型 ID,而你的用户里有几千份老配置写着这两个名字 —— 你的选择只有两个:</p>
+<ol>
+<li><strong>硬报错。</strong> 用户升级完,所有老配置当场失效。他们会觉得是你搞坏了。</li>
+<li><strong>静默映射到继任者。</strong> 用户一切照常,只是跑的不是原来那个模型。</li>
+</ol>
+<p>绝大多数人会选 2。<strong>问题不在替换,在"不告诉你"。</strong> 一个警告、一行日志、响应里一个明确的标记,成本几乎为零,但它把知情权还给了用户。而这些恰好全省了。</p>
+<h2>这不是洁癖,是会真花钱的</h2>
+<p>三个具体危害,按严重程度排:</p>
+<p><strong>一、你在为错误的模型做预算。</strong> 如果你的成本测算基于"我在用某个更强的模型",而实际跑的是便宜的那个,你的账是歪的,而且歪得没有方向感 —— 下次调价时你根本不知道该往哪调。</p>
+<p><strong>二、你会把质量变化归因错。</strong> "这个模型最近变笨了"是最常见的抱怨之一。但如果你的模型在你不知情的时候被换掉了,你观察到的"变笨"或者"变强",可能跟模型迭代毫无关系。</p>
+<p><strong>三、能力假设会静默失效。</strong> 模型之间的能力差异不只是"聪明程度",还包括<strong>能不能收图片、是不是思考型模型、上下文多长</strong>。你基于 A 的能力写的流程,跑在 B 上,出问题的地方会很隐蔽 —— 不是报错,是"偶尔不太对"。</p>
+<h2>怎么查出你实际在跑什么</h2>
+<p>按可靠性排序,从最硬到最软:</p>
+<p><strong>第一,看响应体里的 <code>model</code> 字段。</strong>
+这是唯一由服务端签名确认的真相。任何自己写脚本调 API 的人,都应该把这行打印出来。一行代码的事,能省掉一整类排查。</p>
+<p><strong>第二,查你工具的用量落库。</strong>
+好的工具会把实际使用的模型记进数据库,这个记录通常比配置文件可信。因为配置是<strong>意图</strong>,用量记录是<strong>事实</strong>。以本地那个 agent 为例,记录在 <code>~/.hermes/state.db</code> 的 <code>session_model_usage</code> 表里。</p>
+<p><strong>第三,对照服务商的实时模型列表。</strong>
+<code>GET /v1/models</code> 是最容易拉的一份数据。如果你的配置里写着某个 ID,而它不在这个列表里 —— 你就有问题了。这个检查可以脚本化,几分钟的事,值得放进日常。</p>
+<p><strong>最后,也是最重要的一条:别信配置文件。</strong>
+配置文件记录的是你<strong>希望</strong>发生什么,不是<strong>实际</strong>发生了什么。这次的整件事就是因为这两个东西不一样,而且没有任何机制提醒你。</p>
+<h2>这不是 DeepSeek 的问题</h2>
+<p>DeepSeek 只是我刚好撞上的那个。同样的模式在任何服务商退役模型 ID 时都会出现,而且通常会同时出现在两个地方:服务端的兼容层,和你工具链里的映射表。两层都可能静默,叠加起来你就有两个地方需要怀疑。</p>
+<p>所以可迁移的规则只有一句:</p>
+<blockquote>
+<p><strong>模型名的唯一真相在响应里,不在配置里。</strong></p>
+</blockquote>
+<p>写完这篇我又想到一件事:这类"静默错误"其实是最难通过搜索找到答案的 —— 因为不报错,你就不知道关键词是什么。你只会觉得"哪里怪怪的"。如果你有过类似的经历,欢迎说说是什么场景,我大概会想去实测一遍。</p>
+<hr />
+<p><strong>方法说明:</strong> 上面的 API 行为是今天(2026-10-15)用个人密钥实测的结果,不是从文档里读的;两张表里的数字都是原始返回值。工具侧的映射表来自源码,已注明出处。</p>
+<p><strong>我没能确认的部分:</strong> 服务端的 200 行为是从什么时候开始的、是有意还是临时、会不会哪天改回 400。这三件事我都不知道,所以文中没有替你下结论 —— 如果你要基于这个做长期设计,别把它当成稳定契约。</p>
+</article>
+<p class="back"><a href="../index.html">← 回到文章列表</a></p>
+</main>
+<footer>
+  <p>大模型 API 实测 · agent 工具链 · 价格与真实成本 · <a href="https://example.netlify.app/feed.xml">RSS 订阅</a></p>
+  <p class="dim">© 2026 跑一遍再说</p>
+</footer>
+</body>
+</html>

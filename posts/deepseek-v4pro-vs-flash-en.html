@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSeek v4-pro costs 3× more than Flash. You&#x27;re not paying for intelligence. — 跑一遍再说</title>
+<meta name="description" content="Same prompt, both models, same effort. Equivalent answers. 2.2× the time, 2.4× the cost. And at high effort, v4-pro burns its whole budget on reasoning and returns nothing.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DeepSeek v4-pro costs 3× more than Flash. You&#x27;re not paying for intelligence. — 跑一遍再说">
+<meta property="og:description" content="Same prompt, both models, same effort. Equivalent answers. 2.2× the time, 2.4× the cost. And at high effort, v4-pro burns its whole budget on reasoning and returns nothing.">
+<meta property="og:image" content="https://example.netlify.app/assets/banner-1200x400.png">
+<meta property="og:site_name" content="跑一遍再说">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="跑一遍再说" href="https://example.netlify.app/feed.xml">
+<link rel="icon" href="../assets/avatar-512.png">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="../index.html">跑一遍再说</a>
+  <nav>
+    <a href="../index.html">文章</a>
+    <a href="../about.html">关于</a>
+    <a href="https://example.netlify.app/feed.xml">RSS</a>
+  </nav>
+</header>
+<main>
+<article>
+<h1>DeepSeek v4-pro costs 3× more than Flash. You&#x27;re not paying for intelligence.</h1>
+<p class="meta"><time datetime="2026-10-13">13 Oct 2026</time> · EN</p>
+<p>I ran the same prompt through <code>deepseek-flash</code> and <code>deepseek-v4-pro</code> — same thinking switch, same medium reasoning effort.</p>
+<p>The answers were equivalent. Time to completion differed by 2.2×. Cost differed by 2.4×.</p>
+<p>Then it got more interesting. At <code>high</code> effort, v4-pro burned its entire 6,000-token budget on internal reasoning and returned <strong>absolutely nothing</strong>.</p>
+<p>Here's the setup, the numbers, and what I'd actually do with each model.</p>
+<hr />
+<h2>First: the cheap model is the new one</h2>
+<p>Most people assume pro is the flagship and flash is the trimmed-down version. The release dates say otherwise.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>deepseek-flash</code></th>
+<th><code>deepseek-v4-pro</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Actually is</td>
+<td>DeepSeek <strong>V4.1 Flash</strong></td>
+<td>DeepSeek <strong>V4 Pro</strong></td>
+</tr>
+<tr>
+<td>Released</td>
+<td><strong>2026-09-10</strong></td>
+<td>2026-04-24</td>
+</tr>
+<tr>
+<td>Context</td>
+<td>1,000,000</td>
+<td>1,000,000</td>
+</tr>
+<tr>
+<td>Max output</td>
+<td>384,000</td>
+<td>384,000</td>
+</tr>
+<tr>
+<td>Input modalities</td>
+<td><strong>text + image</strong></td>
+<td><strong>text only</strong></td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>Flash shipped <strong>four and a half months later</strong>. This isn't large-vs-small. It's two generations sitting on one price sheet.</p>
+<p>Worth noting on its own: <strong>only Flash accepts images.</strong> v4-pro is text-only.</p>
+<h2>The price gap isn't 3×, it's 4.4×</h2>
+<p>Official off-peak rates, USD per million tokens. Peak hours are 2× — that's Mon–Fri 01:00–04:00 and 06:00–10:00 UTC.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Input</th>
+<th>Output</th>
+<th>Cache hit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>0.15</td>
+<td>0.60</td>
+<td><strong>0.003</strong></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>0.66</td>
+<td>1.98</td>
+<td><strong>0.022</strong></td>
+</tr>
+<tr>
+<td>Multiple</td>
+<td><strong>4.4×</strong></td>
+<td><strong>3.3×</strong></td>
+<td><strong>7.3×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Don't stop at input and output. <strong>The last column is what sets your bill.</strong></p>
+<p>In any agent workload — file reads, tool calls, multi-turn loops — the overwhelming majority of tokens are repeated context prefix, i.e. cache hits. Pro charges <strong>7.3× more</strong> for that. The longer your conversation runs, the closer your real cost gets to that multiple, not to 3×.</p>
+<h2>The head-to-head</h2>
+<p>The prompt is a classic trap: <em>"A farmer has 17 sheep. All but 9 run away. Then half of the remaining sheep are sold, and 3 more are bought. How many sheep now, and what's the most likely arithmetic trap here?"</em></p>
+<p>I picked it deliberately — it tests whether the model notices a language trap, not whether it can compute.</p>
+<table>
+<thead>
+<tr>
+<th>Model / effort</th>
+<th>Wall time</th>
+<th>Reasoning tokens</th>
+<th>Answer tokens</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>flash @ medium</td>
+<td>18.1s</td>
+<td>3,898</td>
+<td>77</td>
+<td>$0.0024</td>
+</tr>
+<tr>
+<td>flash @ high</td>
+<td>14.2s</td>
+<td>2,953</td>
+<td>77</td>
+<td>$0.0018</td>
+</tr>
+<tr>
+<td><strong>v4-pro @ medium</strong></td>
+<td><strong>39.0s</strong></td>
+<td>2,837</td>
+<td>69</td>
+<td><strong>$0.0058</strong></td>
+</tr>
+<tr>
+<td>v4-pro @ high</td>
+<td>81.5s</td>
+<td>6,000</td>
+<td><strong>0</strong></td>
+<td>$0.0119</td>
+</tr>
+</tbody>
+</table>
+<p>Both models got the same answer, and both correctly identified the same trap: "all but 9 run away" means <em>9 remain</em>, not <em>9 left</em>. Both landed on 7.5 sheep, which is the correct reading of a deliberately broken premise.</p>
+<p>Pro was slightly tighter in prose — 69 tokens vs 77. <strong>That is not a capability difference worth 2.4×.</strong></p>
+<h3>v4-pro at high effort thinks itself to death</h3>
+<p>That last row is the real finding. 81.5 seconds. 6,000 tokens. All of it consumed inside hidden reasoning. <code>finish_reason</code> came back as <code>length</code>, and the content was an empty string.</p>
+<p>You pay 1.2 cents and receive nothing.</p>
+<p>In an agent loop this is a nasty failure mode, because it isn't an error. Your program sees a successful API call, gets an empty string, and keeps going. Without an explicit empty-content check in your parsing layer, this bug lives quietly as "the model is flaky sometimes."</p>
+<p><strong>Practical takeaway: don't set v4-pro to high.</strong> Medium is enough, and it's cheaper.</p>
+<h2>When I'd actually use v4-pro</h2>
+<p>Four runs of a trick question are not evidence that pro is worthless. The task was easy and both models cleared it. What the pricing structure and the behaviour suggest:</p>
+<p><strong>Default to flash for:</strong>
+- Tool-calling loops, file reads and writes, code edits
+- Long-context conversations
+- Anything that needs image input (pro can't take it)
+- Anything you'll run dozens of times</p>
+<p><strong>Reach for v4-pro when:</strong>
+- The problem is genuinely hard: architecture calls, messy debugging, multi-step reasoning
+- It's a one-off you're willing to pay for "thinking longer"
+- Effort is pinned to medium</p>
+<p>The decision rule is just: <strong>how many times will I make this call?</strong> Once — use pro. Dozens of times — use flash, because the difference becomes a rent-payment question.</p>
+<h2>Method and limitations</h2>
+<p>Laying out the method, including the parts that don't flatter the conclusion:</p>
+<ul>
+<li><strong>One run per configuration.</strong> Variance at this scale is large. Note that flash at high came in <em>cheaper and faster</em> than flash at medium — that's pure noise, not an argument that high is more efficient. To use any of this as a baseline you'd need ~10 runs and medians.</li>
+<li>Unit prices come from a local snapshot of DeepSeek's official pricing page dated 2026-09-10. The third-party catalog models.dev lists v4-pro at 0.435 / 0.87 instead. <strong>The two sources disagree — trust your own invoice.</strong></li>
+<li>A trap question measures the floor, not the ceiling. It says nothing about how these models differ on problems that are actually hard. That needs a benchmark set like GPQA, which is a different project.</li>
+</ul>
+<h2>Two things I found the hard way</h2>
+<p><strong>1. <code>deepseek-chat</code> and <code>deepseek-reasoner</code> are dead, and nothing tells you.</strong></p>
+<p>DeepSeek retired both IDs on 2026-07-24. They're gone from <code>/models</code> — but the API still answers them with HTTP 200, substituting <code>deepseek-flash</code> and quietly reporting the real model name in the response body's <code>model</code> field.</p>
+<p>I verified this by calling the endpoint directly:</p>
+<pre><code>model sent          HTTP   model returned in body
+deepseek-reasoner → 200 →  deepseek-flash
+deepseek-chat     → 200 →  deepseek-flash
+</code></pre>
+<p>Many client libraries do the same substitution even earlier, before the request leaves your machine. Neither layer raises a warning.</p>
+<p>Check what you're actually running: don't read your config file. Print the <code>model</code> field from the response — that's the server confirming what executed. It's the only trustworthy source.</p>
+<p><strong>2. Passing a provider name as a model name returns a 400.</strong></p>
+<p><code>deepseek</code> is the vendor, not a model. Send it and you get:</p>
+<pre><code>The supported API model names are deepseek-flash, deepseek-v4-pro, but you passed deepseek.
+</code></pre>
+<p>Use an alias instead.</p>
+<hr />
+<p><strong>The short version:</strong> that 3× premium doesn't buy a smarter model. It buys longer thinking, a heavier cache bill, and a failure mode where the model reasons itself into returning nothing. Decide which of those you want before you pay for it.</p>
+</article>
+<p class="back"><a href="../index.html">← 回到文章列表</a></p>
+</main>
+<footer>
+  <p>大模型 API 实测 · agent 工具链 · 价格与真实成本 · <a href="https://example.netlify.app/feed.xml">RSS 订阅</a></p>
+  <p class="dim">© 2026 跑一遍再说</p>
+</footer>
+</body>
+</html>

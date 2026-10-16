@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+  <title>跑一遍再说</title>
+  <link>https://example.netlify.app</link>
+  <description>大模型 API 实测 · agent 工具链 · 价格与真实成本</description>
+  <language>zh-cn</language>
+  <lastBuildDate>Fri, 16 Oct 2026 12:07:03 +0000</lastBuildDate>
+  <item>
+    <title>你的配置写着 deepseek-reasoner，实际跑的是 flash —— 而且没有任何地方会报错</title>
+    <link>https://example.netlify.app/posts/deepseek-silent-downgrade.html</link>
+    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-silent-downgrade.html</guid>
+    <pubDate>Thu, 15 Oct 2026 00:00:00 +0000</pubDate>
+    <description>服务端和客户端各有一层静默替换。你写的模型名和真正执行的模型名，可以在你完全不知情的情况下分道扬镳。附自查方法。</description>
+    <content:encoded><![CDATA[<p>我本来只是想验证一个代码注释。结果发现的情况比注释里写的更麻烦。</p>
+<p>事情起因很简单:一份配置文件里写的是 <code>deepseek-reasoner</code>,但我在会话记录里看到的实际模型是 <code>deepseek-flash</code>。配置和现实不一致,而且——</p>
+<p><strong>没有任何报错。没有警告。调用成功,一切正常。</strong></p>
+<p>于是我做了两个测试。结论是:这条链路上有<strong>两层</strong>静默替换,你写的模型名和真正执行的模型名,可以在你完全不知情的情况下分道扬镳。</p>
+<hr />
+<h2>第一层:服务端自己就在换,而且在响应里告诉你了</h2>
+<p>我直接用 HTTP 请求,把三个模型名分别发给 DeepSeek 的官方接口,看它怎么回:</p>
+<table>
+<thead>
+<tr>
+<th>我发的模型名</th>
+<th>HTTP</th>
+<th>响应里 <code>model</code> 字段实际是什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-reasoner</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-chat</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>200</td>
+<td><code>deepseek-flash</code></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>200</td>
+<td><code>deepseek-v4-pro</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>deepseek-reasoner</code> 和 <code>deepseek-chat</code> 这两个 ID 早就被下架了 —— 看 <code>/models</code> 列表就很清楚,现在只剩 <code>deepseek-flash</code> 和 <code>deepseek-v4-pro</code>,那两个名字已经不在目录里了。</p>
+<p><strong>但接口并不拒绝它们。</strong> 你发过去,它 200 通过,然后<strong>换成 flash 帮你跑完</strong>,顺便在响应体的 <code>model</code> 字段里留了个记录。</p>
+<p>所以这里不存在"报错"这个环节。它不吵不闹,把活干了,只是干的不是你要的那件事。</p>
+<p>值得说清楚的是:我不确定这是 DeepSeek 有意留的兼容层,还是过渡期的软着陆。<strong>我只知道现在是这样,以及响应体里那个字段是唯一的线索。</strong> 绝大多数客户端和脚本从来不看它。</p>
+<h2>第二层:你的工具也在换,换得比服务端更早</h2>
+<p>同一件事在客户端还有一层。我用一个本地 agent 工具试了另一个方向:明确要求它用 <code>deepseek-reasoner</code>。</p>
+<p>它没报错,正常回答了。然后我去查它的用量记录:</p>
+<pre><code>session_id               model            calls
+20261015_210739_2016eb   deepseek-flash   1
+</code></pre>
+<p><strong>我要求的是 <code>deepseek-reasoner</code>,记录里写的是 <code>deepseek-flash</code>。</strong></p>
+<p>工具在发请求之前就把模型名换掉了。我把源码翻出来,映射表长这样:</p>
+<pre><code class="language-python"># DeepSeek retired ``deepseek-chat`` / ``deepseek-reasoner`` on 2026-07-24
+_DEEPSEEK_RETIRED_ALIASES = {
+    &quot;deepseek-chat&quot;: &quot;deepseek-flash&quot;,
+    &quot;deepseek-reasoner&quot;: &quot;deepseek-flash&quot;,
+}
+</code></pre>
+<p>顺带一个反转:这段注释说这两个 ID 从 2026-07-24 起调用一律返回 400。<strong>但上面那张表里我实测到的是 200。</strong> 要么 DeepSeek 后来放宽了,要么当初的 400 只发生在某条特定路径上。</p>
+<p>我不知道是哪个,但这件事本身很说明问题:<strong>连写这段兼容代码的人,对"现在会发生什么"的判断都可能已经过期了。</strong></p>
+<h2>为什么两边都选了静默替换</h2>
+<p>先说句公道话:这个设计不是恶意,甚至算合理。</p>
+<p>如果你是个工具作者,官方退役了两个模型 ID,而你的用户里有几千份老配置写着这两个名字 —— 你的选择只有两个:</p>
+<ol>
+<li><strong>硬报错。</strong> 用户升级完,所有老配置当场失效。他们会觉得是你搞坏了。</li>
+<li><strong>静默映射到继任者。</strong> 用户一切照常,只是跑的不是原来那个模型。</li>
+</ol>
+<p>绝大多数人会选 2。<strong>问题不在替换,在"不告诉你"。</strong> 一个警告、一行日志、响应里一个明确的标记,成本几乎为零,但它把知情权还给了用户。而这些恰好全省了。</p>
+<h2>这不是洁癖,是会真花钱的</h2>
+<p>三个具体危害,按严重程度排:</p>
+<p><strong>一、你在为错误的模型做预算。</strong> 如果你的成本测算基于"我在用某个更强的模型",而实际跑的是便宜的那个,你的账是歪的,而且歪得没有方向感 —— 下次调价时你根本不知道该往哪调。</p>
+<p><strong>二、你会把质量变化归因错。</strong> "这个模型最近变笨了"是最常见的抱怨之一。但如果你的模型在你不知情的时候被换掉了,你观察到的"变笨"或者"变强",可能跟模型迭代毫无关系。</p>
+<p><strong>三、能力假设会静默失效。</strong> 模型之间的能力差异不只是"聪明程度",还包括<strong>能不能收图片、是不是思考型模型、上下文多长</strong>。你基于 A 的能力写的流程,跑在 B 上,出问题的地方会很隐蔽 —— 不是报错,是"偶尔不太对"。</p>
+<h2>怎么查出你实际在跑什么</h2>
+<p>按可靠性排序,从最硬到最软:</p>
+<p><strong>第一,看响应体里的 <code>model</code> 字段。</strong>
+这是唯一由服务端签名确认的真相。任何自己写脚本调 API 的人,都应该把这行打印出来。一行代码的事,能省掉一整类排查。</p>
+<p><strong>第二,查你工具的用量落库。</strong>
+好的工具会把实际使用的模型记进数据库,这个记录通常比配置文件可信。因为配置是<strong>意图</strong>,用量记录是<strong>事实</strong>。以本地那个 agent 为例,记录在 <code>~/.hermes/state.db</code> 的 <code>session_model_usage</code> 表里。</p>
+<p><strong>第三,对照服务商的实时模型列表。</strong>
+<code>GET /v1/models</code> 是最容易拉的一份数据。如果你的配置里写着某个 ID,而它不在这个列表里 —— 你就有问题了。这个检查可以脚本化,几分钟的事,值得放进日常。</p>
+<p><strong>最后,也是最重要的一条:别信配置文件。</strong>
+配置文件记录的是你<strong>希望</strong>发生什么,不是<strong>实际</strong>发生了什么。这次的整件事就是因为这两个东西不一样,而且没有任何机制提醒你。</p>
+<h2>这不是 DeepSeek 的问题</h2>
+<p>DeepSeek 只是我刚好撞上的那个。同样的模式在任何服务商退役模型 ID 时都会出现,而且通常会同时出现在两个地方:服务端的兼容层,和你工具链里的映射表。两层都可能静默,叠加起来你就有两个地方需要怀疑。</p>
+<p>所以可迁移的规则只有一句:</p>
+<blockquote>
+<p><strong>模型名的唯一真相在响应里,不在配置里。</strong></p>
+</blockquote>
+<p>写完这篇我又想到一件事:这类"静默错误"其实是最难通过搜索找到答案的 —— 因为不报错,你就不知道关键词是什么。你只会觉得"哪里怪怪的"。如果你有过类似的经历,欢迎说说是什么场景,我大概会想去实测一遍。</p>
+<hr />
+<p><strong>方法说明:</strong> 上面的 API 行为是今天(2026-10-15)用个人密钥实测的结果,不是从文档里读的;两张表里的数字都是原始返回值。工具侧的映射表来自源码,已注明出处。</p>
+<p><strong>我没能确认的部分:</strong> 服务端的 200 行为是从什么时候开始的、是有意还是临时、会不会哪天改回 400。这三件事我都不知道,所以文中没有替你下结论 —— 如果你要基于这个做长期设计,别把它当成稳定契约。</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>DeepSeek v4-pro 比 flash 贵 3 倍，但多花的钱买的不是「能力」</title>
+    <link>https://example.netlify.app/posts/deepseek-v4pro-vs-flash.html</link>
+    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-v4pro-vs-flash.html</guid>
+    <pubDate>Tue, 13 Oct 2026 00:00:00 +0000</pubDate>
+    <description>同一道题跑两个模型：答案质量没有区别，耗时差 2.2 倍，花费差 2.4 倍。而 v4-pro 开到 high 推理档时，会把预算全部烧在思考上，一个字都不回答。</description>
+    <content:encoded><![CDATA[<p>我把同一个问题分别丢给 <code>deepseek-flash</code> 和 <code>deepseek-v4-pro</code>,相同的 thinking 开关,相同的 medium 推理档。</p>
+<p>结果:<strong>答案质量没有区别,耗时差 2.2 倍,花费差 2.4 倍。</strong></p>
+<p>第二组实验更意外:v4-pro 开到 high 推理档,它把 6000 个 token 全部烧在思考过程里,一个字都没回答出来。</p>
+<p>下面是我怎么测的、测出了什么、以及这个模型到底该怎么选。</p>
+<hr />
+<h2>先说一个大多数人都搞错的事:flash 才是新的那个</h2>
+<p>如果你跟我一样以为"pro 是高端、flash 是缩水版",版本时间线会让你意外:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>deepseek-flash</code></th>
+<th><code>deepseek-v4-pro</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>实际身份</td>
+<td>DeepSeek <strong>V4.1 Flash</strong></td>
+<td>DeepSeek <strong>V4 Pro</strong></td>
+</tr>
+<tr>
+<td>发布</td>
+<td><strong>2026-09-10</strong></td>
+<td>2026-04-24</td>
+</tr>
+<tr>
+<td>上下文</td>
+<td>1,000,000</td>
+<td>1,000,000</td>
+</tr>
+<tr>
+<td>最大输出</td>
+<td>384,000</td>
+<td>384,000</td>
+</tr>
+<tr>
+<td>输入模态</td>
+<td><strong>文字 + 图片</strong></td>
+<td><strong>纯文字</strong></td>
+</tr>
+<tr>
+<td>reasoning</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>tool call</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<p>flash 比 pro <strong>晚了四个半月</strong>。这不是"大杯和小杯",是两代东西被放在同一张价目表上。</p>
+<p>顺带一个反常识:<strong>只有 flash 收图片</strong>。v4-pro 是纯文本模型。</p>
+<h2>价格:不是贵 3 倍,是贵 4.4 倍</h2>
+<p>官方 off-peak 单价(美元 / 百万 token),peak 时段翻倍,对应周一至周五 01:00–04:00 和 06:00–10:00 UTC:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>输入</th>
+<th>输出</th>
+<th>cache 命中</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>0.15</td>
+<td>0.60</td>
+<td><strong>0.003</strong></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>0.66</td>
+<td>1.98</td>
+<td><strong>0.022</strong></td>
+</tr>
+<tr>
+<td>倍数</td>
+<td><strong>4.4×</strong></td>
+<td><strong>3.3×</strong></td>
+<td><strong>7.3×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>先别急着看输入输出 —— <strong>真正决定你账单的是最后那一列。</strong></p>
+<p>Agent 类应用(读写文件、调工具、多轮循环)的 token 绝大部分来自重复的上下文前缀,也就是 cache 命中那部分。这一项 pro 贵 <strong>7.3 倍</strong>。你的对话越长、跑得越久,实际成本就越靠近这个倍数,而不是靠近 3 倍。</p>
+<h2>实测:同一道题,两个模型</h2>
+<p>问题是一个老陷阱题:"农夫有 17 只羊,除了 9 只以外都跑了,然后卖掉剩下的一半,又买了 3 只 —— 现在多少只?这道题最容易踩的算术陷阱是什么?"</p>
+<p>刻意选它,因为它考的是<strong>识别语言陷阱</strong>的能力,而不是计算量:</p>
+<table>
+<thead>
+<tr>
+<th>模型 / 推理档</th>
+<th>耗时</th>
+<th>思考 token</th>
+<th>作答 token</th>
+<th>花费</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>flash @ medium</td>
+<td>18.1s</td>
+<td>3898</td>
+<td>77</td>
+<td>$0.0024</td>
+</tr>
+<tr>
+<td>flash @ high</td>
+<td>14.2s</td>
+<td>2953</td>
+<td>77</td>
+<td>$0.0018</td>
+</tr>
+<tr>
+<td><strong>v4-pro @ medium</strong></td>
+<td><strong>39.0s</strong></td>
+<td>2837</td>
+<td>69</td>
+<td><strong>$0.0058</strong></td>
+</tr>
+<tr>
+<td>v4-pro @ high</td>
+<td>81.5s</td>
+<td>6000</td>
+<td><strong>0</strong></td>
+<td>$0.0119</td>
+</tr>
+</tbody>
+</table>
+<p>两个模型的答案<strong>实质相同</strong>:都算出 7.5 只(题目本身有小数陷阱),都准确指出了同一个陷阱 ——"all but 9 run away" 是"剩下 9 只",不是"跑了 9 只"。</p>
+<p>v4-pro 输出了 69 个 token,flash 77 个,表达上 pro 更紧一点。<strong>但这不是值得付 2.4 倍价钱的能力差异。</strong></p>
+<h3>真正值得说的一件事:v4-pro 在 high 档会把自己想死</h3>
+<p>最后一行是个真问题。81.5 秒,6000 个 token,全部消耗在隐藏的推理过程里,<strong><code>finish_reason</code> 是 <code>length</code>,正文一个字都没有</strong>。</p>
+<p>你付了 1.2 美分,拿到一个空回复。</p>
+<p>这在 agent 场景里是很糟的失败模式 —— 不是报错,是静默失败。程序以为调用成功了,拿到空字符串,继续往下跑。如果你没在解析层做空内容检查,这个 bug 会以"模型偶尔抽风"的形式潜伏很久。</p>
+<p><strong>结论:v4-pro 不要配 high。</strong> medium 就够,而且更省。</p>
+<h2>那 v4-pro 到底该什么时候用</h2>
+<p>我这四组数据<strong>不足以</strong>证明 pro 没价值 —— 一道陷阱题太简单,两个模型都能秒掉。按常识和定价结构,我的判断是:</p>
+<p><strong>用 flash 的场景</strong>(日常 90%):
+- 工具调用循环、文件读写、代码编辑
+- 长上下文对话
+- 任何需要图片输入的任务(pro 根本收不了)
+- 任何你会跑几十次以上的批量任务</p>
+<p><strong>切 v4-pro 的场景</strong>:
+- 难题:架构判断、复杂 debug、多步推理
+- 一次性、你愿意为"想得更久"付钱的任务
+- 推理档固定 medium</p>
+<p>判据其实很简单:<strong>这次调用我跑几次?</strong> 一次 —— 用 pro。几十次 —— 用 flash,差价会变成你要不要交房租的问题。</p>
+<h2>方法说明与局限</h2>
+<p>我把方法和数据都摊开,包括对我自己不利的部分:</p>
+<ul>
+<li>每组<strong>只跑了一次</strong>。这个量级的耗时/花费差值里噪声很大 —— 注意 flash 的 high 档比 medium 档还便宜、还快,这纯属抖动,不代表 high 更省。想拿它当基准,至少要跑 10 次取中位数。</li>
+<li>单价我用的是本机内置的官方价格快照(快照日期 2026-09-10)。第三方目录 models.dev 给 v4-pro 报的是 0.435 / 0.87,和这个不一致。<strong>两处报价有出入,以你自己的账单为准。</strong></li>
+<li>陷阱题只能测出"下限",测不出两个模型在难题上的差距。真想对比,得用 GPQA 之类的题集,那是另一个工程量。</li>
+</ul>
+<h2>附:两个实测出来的坑</h2>
+<p>既然都上台了,顺手说两个花了我时间才发现的东西。</p>
+<p><strong>一、<code>deepseek-chat</code> 和 <code>deepseek-reasoner</code> 已经死了,但你的配置不会报错。</strong></p>
+<p>DeepSeek 在 2026-07-24 下架了这两个 ID。它们现在不在 <code>/models</code> 列表里了,但<strong>接口并不拒绝它们</strong> —— 实测发过去仍是 HTTP 200,服务端会换成 <code>deepseek-flash</code> 帮你跑完,只在响应体的 <code>model</code> 字段里留下痕迹。你的工具往往还会在更早的一层做同样的替换。</p>
+<p>两层都不报错。你不会看到任何提示,只会以为自己一直在用某个更强的模型,实际跑的是 flash。</p>
+<p>自查方法:别信配置文件,去看<strong>实际记录</strong>。最直接的是打印响应体里的 <code>model</code> 字段 —— 那是服务端确认的真相。如果你用 Hermes,记录在 <code>~/.hermes/state.db</code> 的 <code>session_model_usage</code> 表里,那才是真正发出去的模型名。</p>
+<p><strong>二、把 provider 名当模型名用会 400。</strong></p>
+<p><code>deepseek</code> 是服务商的名字,不是模型名。传进去会得到:</p>
+<pre><code>The supported API model names are deepseek-flash, deepseek-v4-pro, but you passed deepseek.
+</code></pre>
+<p>正确做法是定义别名(以 Hermes 为例):</p>
+<pre><code class="language-bash">hermes config set model.aliases.v4pro deepseek/deepseek-v4-pro
+</code></pre>
+<p>之后 <code>/model v4pro</code> 就能切换。</p>
+<hr />
+<p><strong>一句话总结:</strong> 贵的那 3 倍,买的不是更聪明的脑子,是更长的思考时间、更大的 cache 成本,以及一个在 high 档会当场想死机的失败模式。想清楚你要的是哪一个再掏钱。</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>DeepSeek v4-pro costs 3× more than Flash. You&#x27;re not paying for intelligence.</title>
+    <link>https://example.netlify.app/posts/deepseek-v4pro-vs-flash-en.html</link>
+    <guid isPermaLink="true">https://example.netlify.app/posts/deepseek-v4pro-vs-flash-en.html</guid>
+    <pubDate>Tue, 13 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Same prompt, both models, same effort. Equivalent answers. 2.2× the time, 2.4× the cost. And at high effort, v4-pro burns its whole budget on reasoning and returns nothing.</description>
+    <content:encoded><![CDATA[<p>I ran the same prompt through <code>deepseek-flash</code> and <code>deepseek-v4-pro</code> — same thinking switch, same medium reasoning effort.</p>
+<p>The answers were equivalent. Time to completion differed by 2.2×. Cost differed by 2.4×.</p>
+<p>Then it got more interesting. At <code>high</code> effort, v4-pro burned its entire 6,000-token budget on internal reasoning and returned <strong>absolutely nothing</strong>.</p>
+<p>Here's the setup, the numbers, and what I'd actually do with each model.</p>
+<hr />
+<h2>First: the cheap model is the new one</h2>
+<p>Most people assume pro is the flagship and flash is the trimmed-down version. The release dates say otherwise.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>deepseek-flash</code></th>
+<th><code>deepseek-v4-pro</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Actually is</td>
+<td>DeepSeek <strong>V4.1 Flash</strong></td>
+<td>DeepSeek <strong>V4 Pro</strong></td>
+</tr>
+<tr>
+<td>Released</td>
+<td><strong>2026-09-10</strong></td>
+<td>2026-04-24</td>
+</tr>
+<tr>
+<td>Context</td>
+<td>1,000,000</td>
+<td>1,000,000</td>
+</tr>
+<tr>
+<td>Max output</td>
+<td>384,000</td>
+<td>384,000</td>
+</tr>
+<tr>
+<td>Input modalities</td>
+<td><strong>text + image</strong></td>
+<td><strong>text only</strong></td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>Flash shipped <strong>four and a half months later</strong>. This isn't large-vs-small. It's two generations sitting on one price sheet.</p>
+<p>Worth noting on its own: <strong>only Flash accepts images.</strong> v4-pro is text-only.</p>
+<h2>The price gap isn't 3×, it's 4.4×</h2>
+<p>Official off-peak rates, USD per million tokens. Peak hours are 2× — that's Mon–Fri 01:00–04:00 and 06:00–10:00 UTC.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Input</th>
+<th>Output</th>
+<th>Cache hit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>0.15</td>
+<td>0.60</td>
+<td><strong>0.003</strong></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>0.66</td>
+<td>1.98</td>
+<td><strong>0.022</strong></td>
+</tr>
+<tr>
+<td>Multiple</td>
+<td><strong>4.4×</strong></td>
+<td><strong>3.3×</strong></td>
+<td><strong>7.3×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Don't stop at input and output. <strong>The last column is what sets your bill.</strong></p>
+<p>In any agent workload — file reads, tool calls, multi-turn loops — the overwhelming majority of tokens are repeated context prefix, i.e. cache hits. Pro charges <strong>7.3× more</strong> for that. The longer your conversation runs, the closer your real cost gets to that multiple, not to 3×.</p>
+<h2>The head-to-head</h2>
+<p>The prompt is a classic trap: <em>"A farmer has 17 sheep. All but 9 run away. Then half of the remaining sheep are sold, and 3 more are bought. How many sheep now, and what's the most likely arithmetic trap here?"</em></p>
+<p>I picked it deliberately — it tests whether the model notices a language trap, not whether it can compute.</p>
+<table>
+<thead>
+<tr>
+<th>Model / effort</th>
+<th>Wall time</th>
+<th>Reasoning tokens</th>
+<th>Answer tokens</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>flash @ medium</td>
+<td>18.1s</td>
+<td>3,898</td>
+<td>77</td>
+<td>$0.0024</td>
+</tr>
+<tr>
+<td>flash @ high</td>
+<td>14.2s</td>
+<td>2,953</td>
+<td>77</td>
+<td>$0.0018</td>
+</tr>
+<tr>
+<td><strong>v4-pro @ medium</strong></td>
+<td><strong>39.0s</strong></td>
+<td>2,837</td>
+<td>69</td>
+<td><strong>$0.0058</strong></td>
+</tr>
+<tr>
+<td>v4-pro @ high</td>
+<td>81.5s</td>
+<td>6,000</td>
+<td><strong>0</strong></td>
+<td>$0.0119</td>
+</tr>
+</tbody>
+</table>
+<p>Both models got the same answer, and both correctly identified the same trap: "all but 9 run away" means <em>9 remain</em>, not <em>9 left</em>. Both landed on 7.5 sheep, which is the correct reading of a deliberately broken premise.</p>
+<p>Pro was slightly tighter in prose — 69 tokens vs 77. <strong>That is not a capability difference worth 2.4×.</strong></p>
+<h3>v4-pro at high effort thinks itself to death</h3>
+<p>That last row is the real finding. 81.5 seconds. 6,000 tokens. All of it consumed inside hidden reasoning. <code>finish_reason</code> came back as <code>length</code>, and the content was an empty string.</p>
+<p>You pay 1.2 cents and receive nothing.</p>
+<p>In an agent loop this is a nasty failure mode, because it isn't an error. Your program sees a successful API call, gets an empty string, and keeps going. Without an explicit empty-content check in your parsing layer, this bug lives quietly as "the model is flaky sometimes."</p>
+<p><strong>Practical takeaway: don't set v4-pro to high.</strong> Medium is enough, and it's cheaper.</p>
+<h2>When I'd actually use v4-pro</h2>
+<p>Four runs of a trick question are not evidence that pro is worthless. The task was easy and both models cleared it. What the pricing structure and the behaviour suggest:</p>
+<p><strong>Default to flash for:</strong>
+- Tool-calling loops, file reads and writes, code edits
+- Long-context conversations
+- Anything that needs image input (pro can't take it)
+- Anything you'll run dozens of times</p>
+<p><strong>Reach for v4-pro when:</strong>
+- The problem is genuinely hard: architecture calls, messy debugging, multi-step reasoning
+- It's a one-off you're willing to pay for "thinking longer"
+- Effort is pinned to medium</p>
+<p>The decision rule is just: <strong>how many times will I make this call?</strong> Once — use pro. Dozens of times — use flash, because the difference becomes a rent-payment question.</p>
+<h2>Method and limitations</h2>
+<p>Laying out the method, including the parts that don't flatter the conclusion:</p>
+<ul>
+<li><strong>One run per configuration.</strong> Variance at this scale is large. Note that flash at high came in <em>cheaper and faster</em> than flash at medium — that's pure noise, not an argument that high is more efficient. To use any of this as a baseline you'd need ~10 runs and medians.</li>
+<li>Unit prices come from a local snapshot of DeepSeek's official pricing page dated 2026-09-10. The third-party catalog models.dev lists v4-pro at 0.435 / 0.87 instead. <strong>The two sources disagree — trust your own invoice.</strong></li>
+<li>A trap question measures the floor, not the ceiling. It says nothing about how these models differ on problems that are actually hard. That needs a benchmark set like GPQA, which is a different project.</li>
+</ul>
+<h2>Two things I found the hard way</h2>
+<p><strong>1. <code>deepseek-chat</code> and <code>deepseek-reasoner</code> are dead, and nothing tells you.</strong></p>
+<p>DeepSeek retired both IDs on 2026-07-24. They're gone from <code>/models</code> — but the API still answers them with HTTP 200, substituting <code>deepseek-flash</code> and quietly reporting the real model name in the response body's <code>model</code> field.</p>
+<p>I verified this by calling the endpoint directly:</p>
+<pre><code>model sent          HTTP   model returned in body
+deepseek-reasoner → 200 →  deepseek-flash
+deepseek-chat     → 200 →  deepseek-flash
+</code></pre>
+<p>Many client libraries do the same substitution even earlier, before the request leaves your machine. Neither layer raises a warning.</p>
+<p>Check what you're actually running: don't read your config file. Print the <code>model</code> field from the response — that's the server confirming what executed. It's the only trustworthy source.</p>
+<p><strong>2. Passing a provider name as a model name returns a 400.</strong></p>
+<p><code>deepseek</code> is the vendor, not a model. Send it and you get:</p>
+<pre><code>The supported API model names are deepseek-flash, deepseek-v4-pro, but you passed deepseek.
+</code></pre>
+<p>Use an alias instead.</p>
+<hr />
+<p><strong>The short version:</strong> that 3× premium doesn't buy a smarter model. It buys longer thinking, a heavier cache bill, and a failure mode where the model reasons itself into returning nothing. Decide which of those you want before you pay for it.</p>]]></content:encoded>
+  </item>
+</channel>
+</rss>
