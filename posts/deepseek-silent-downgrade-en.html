@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSeek silently serves you a different model than the one you asked for — 跑一遍再说</title>
+<meta name="description" content="I asked for deepseek-reasoner. The API ran deepseek-flash and returned HTTP 200. Two layers of silent substitution, both invisible by default — and the only place the truth appears is a response field almost nobody reads.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DeepSeek silently serves you a different model than the one you asked for — 跑一遍再说">
+<meta property="og:description" content="I asked for deepseek-reasoner. The API ran deepseek-flash and returned HTTP 200. Two layers of silent substitution, both invisible by default — and the only place the truth appears is a response field almost nobody reads.">
+<meta property="og:image" content="https://bh1357906-sys.github.io/paoyibian/assets/banner-1200x400.png">
+<meta property="og:site_name" content="跑一遍再说">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="跑一遍再说" href="https://bh1357906-sys.github.io/paoyibian/feed.xml">
+<link rel="icon" href="../assets/avatar-512.png">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="../index.html">跑一遍再说</a>
+  <nav>
+    <a href="../index.html">文章</a>
+    <a href="../about.html">关于</a>
+    <a href="https://bh1357906-sys.github.io/paoyibian/feed.xml">RSS</a>
+  </nav>
+</header>
+<main>
+<article>
+<h1>DeepSeek silently serves you a different model than the one you asked for</h1>
+<p class="meta"><time datetime="2026-10-16">16 Oct 2026</time> · EN</p>
+<p>I asked the API for <code>deepseek-reasoner</code>. It ran <code>deepseek-flash</code> instead.</p>
+<p>No error. No warning. HTTP 200, a normal response, and a model that wasn't the one I requested. The only place the truth appeared was a field in the response body that almost nobody reads.</p>
+<p>So I tested the whole surface. There are <strong>two</strong> layers of silent substitution on this path, and both of them are invisible by default.</p>
+<hr />
+<h2>Layer 1: the server does it, and tells you in a field you don't read</h2>
+<p>Direct HTTP requests to <code>api.deepseek.com/chat/completions</code>, one per model name:</p>
+<table>
+<thead>
+<tr>
+<th>Model name sent</th>
+<th>HTTP</th>
+<th><code>model</code> field actually returned</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deepseek-reasoner</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-chat</code></td>
+<td><strong>200</strong></td>
+<td><strong><code>deepseek-flash</code></strong></td>
+</tr>
+<tr>
+<td><code>deepseek-flash</code></td>
+<td>200</td>
+<td><code>deepseek-flash</code></td>
+</tr>
+<tr>
+<td><code>deepseek-v4-pro</code></td>
+<td>200</td>
+<td><code>deepseek-v4-pro</code></td>
+</tr>
+</tbody>
+</table>
+<p>Both retired IDs are gone from <code>GET /models</code>, which currently lists only <code>deepseek-flash</code> and <code>deepseek-v4-pro</code>. But the completions endpoint <strong>does not reject them</strong>. Send one and the server substitutes Flash, completes your request, and records the substitution in the response body's <code>model</code> field.</p>
+<p>So there is no error to catch. It doesn't fail loudly or quietly — it just does a different thing than you asked, successfully.</p>
+<p>Reproduce it yourself:</p>
+<pre><code class="language-bash">curl -s https://api.deepseek.com/chat/completions \
+  -H &quot;Authorization: Bearer $DEEPSEEK_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;model&quot;:&quot;deepseek-reasoner&quot;,&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;say OK&quot;}],&quot;max_tokens&quot;:10}' \
+  | grep -o '&quot;model&quot;:&quot;[^&quot;]*&quot;'
+</code></pre>
+<p>I can't tell you whether this is a deliberate compatibility layer or unintentional soft-landing, or when it started. What I can tell you is that <code>model</code> is the only signal, and most clients never look at it.</p>
+<h2>Layer 2: your client library does it too, earlier</h2>
+<p>Same problem on the client side. I asked a local agent tool to run <code>deepseek-reasoner</code>. It answered normally. Then I checked its usage log:</p>
+<pre><code>session_id               model            calls
+20261015_210739_2016eb   deepseek-flash   1
+</code></pre>
+<p>The tool rewrote the model name <strong>before the request left my machine</strong>. Its source carries the mapping directly:</p>
+<pre><code class="language-python"># DeepSeek retired deepseek-chat / deepseek-reasoner on 2026-07-24
+_DEEPSEEK_RETIRED_ALIASES = {
+    &quot;deepseek-chat&quot;:  &quot;deepseek-flash&quot;,
+    &quot;deepseek-reasoner&quot;: &quot;deepseek-flash&quot;,
+}
+</code></pre>
+<p>And here's the part worth sitting with: <strong>that comment says the retired IDs have returned HTTP 400 since 2026-07-24. My tests got 200.</strong> Either the API loosened up since, or the 400 only ever applied to a different path.</p>
+<p>I don't know which. But it means the person who wrote the compatibility shim has an out-of-date model of what the API does today — and so, probably, do you.</p>
+<h2>Why both layers choose silence</h2>
+<p>In fairness, the design isn't malicious, and it's not stupid.</p>
+<p>You ship a client. The vendor retires two model IDs. Thousands of your users have configs naming them. You have two options:</p>
+<ol>
+<li><strong>Hard error.</strong> Every stale config breaks on upgrade. Users blame you.</li>
+<li><strong>Silently map to the successor.</strong> Everything keeps working. It's just not the model they asked for.</li>
+</ol>
+<p>Almost everyone picks 2. The problem isn't the substitution — it's that nobody tells you. A warning, a log line, a <code>substituted_model</code> field would cost approximately nothing and hand the user back their own decision. That's the part that got skipped.</p>
+<h2>Why this costs real money</h2>
+<p>Three concrete failure modes, roughly in order of how much they'll hurt:</p>
+<p><strong>1. Your cost model is wrong.</strong> If you budgeted for one model and you're running another, your numbers are off with no direction. When you go to optimize, you don't know what to optimize.</p>
+<p><strong>2. You misattribute quality changes.</strong> "The model got worse lately" is one of the most common complaints in this space. If your model silently changed under you, that observation may have nothing to do with model releases.</p>
+<p><strong>3. Capability assumptions break silently.</strong> Models differ in more than intelligence — image input, reasoning behaviour, context length. A pipeline written against model A's capabilities, running model B, fails in ways that look like intermittent weirdness rather than a bug.</p>
+<h2>How to check what you're actually running</h2>
+<p>In order of how much I'd trust each:</p>
+<p><strong>First, print the <code>model</code> field from the response.</strong> It's the only value the server signs its name to. If you've written your own client, this is one line. It eliminates an entire class of debugging.</p>
+<p><strong>Second, check your tool's usage log.</strong> A good tool records the model it actually used, and that record beats your config file — because config is <em>intent</em> and the usage log is <em>fact</em>. In one local agent it lives in a SQLite table called <code>session_model_usage</code>.</p>
+<p><strong>Third, diff your config against the provider's live <code>/models</code>.</strong> If you're configured for an ID that isn't in that list, you have a problem. This is scriptable and worth running regularly.</p>
+<p><strong>And the general rule: don't trust your config file.</strong> It records what you wanted to happen, not what happened. This entire post exists because those two things diverged and nothing raised a hand.</p>
+<h2>This isn't a DeepSeek problem</h2>
+<p>DeepSeek is just the one I happened to hit. The same pattern shows up whenever a provider retires a model ID, and it usually appears in two places at once: a server-side compatibility layer, and a mapping table in your toolchain. Both can be silent. Stacked, that's two places you have to suspect.</p>
+<p>The transferable rule is one line:</p>
+<blockquote>
+<p><strong>The only truth about which model ran is in the response, not in your config.</strong></p>
+</blockquote>
+<hr />
+<p><strong>Method notes, including the parts that don't flatter the conclusion:</strong> the API behaviour above is a live test run on 2026-10-15 with a personal key, not a reading of the docs; the table contains raw return values. The client-side mapping is quoted from source, with the file identified.</p>
+<p><strong>What I could not determine:</strong> when the server's 200 behaviour started, whether it's intentional, or whether it will change back to 400. Don't treat it as a stable contract if you're designing against it.</p>
+</article>
+<p class="back"><a href="../index.html">← 回到文章列表</a></p>
+</main>
+<footer>
+  <p>大模型 API 实测 · agent 工具链 · 价格与真实成本 · <a href="https://bh1357906-sys.github.io/paoyibian/feed.xml">RSS 订阅</a></p>
+  <p class="dim">© 2026 跑一遍再说</p>
+</footer>
+</body>
+</html>

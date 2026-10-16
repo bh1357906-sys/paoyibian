@@ -25,6 +25,15 @@ SITE_URL = "https://bh1357906-sys.github.io/paoyibian"  # 部署后如有自定�
 # slug -> (source file, title, date, lang, summary)
 MANIFEST = [
     dict(
+        slug="deepseek-silent-downgrade-en",
+        src="deepseek-silent-downgrade-EN.md",
+        title="DeepSeek silently serves you a different model than the one you asked for",
+        date="2026-10-16",
+        lang="en",
+        langtag="EN",
+        summary="I asked for deepseek-reasoner. The API ran deepseek-flash and returned HTTP 200. Two layers of silent substitution, both invisible by default — and the only place the truth appears is a response field almost nobody reads.",
+    ),
+    dict(
         slug="us-treasury-etf-withholding-tax",
         src="us-treasury-etf-withholding-tax.md",
         title="美国国债 4%，为什么到你手上只剩 2.6%",
